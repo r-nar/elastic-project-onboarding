@@ -1,0 +1,5 @@
+{
+  "name": "Elastic Project Onboarding",
+  "description": "A tool to onboard new elastic projects by defining project scope, phases, and key dates, and visualizing them on a timeline.",
+  "requestFramePermissions": []
+}
