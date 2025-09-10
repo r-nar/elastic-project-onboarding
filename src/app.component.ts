@@ -3,6 +3,10 @@ import { CommonModule } from '@angular/common';
 import { TimelineComponent } from './components/timeline/timeline.component';
 import { Phase } from './phase.interface';
 
+declare var jspdf: any;
+declare var html2canvas: any;
+declare var JSZip: any;
+
 @Component({
   selector: 'app-root',
   templateUrl: './app.component.html',
@@ -20,6 +24,7 @@ import { Phase } from './phase.interface';
 export class AppComponent {
   projectName = signal<string>('My Awesome Project');
   projectScope = signal<string>('This project aims to deliver an innovative solution by leveraging cutting-edge technologies to solve a critical business problem.');
+  isProcessing = signal(false);
   
   validationErrors = signal<Record<string, Record<string, string>>>({});
 
@@ -42,12 +47,8 @@ export class AppComponent {
           }
         }
         
-        if (supportHandoverDate) {
-            if (milestoneDate && new Date(supportHandoverDate) < new Date(milestoneDate)) {
-               errors[id]['supportHandoverDate'] = 'Handover must be on or after the milestone date.';
-            } else if (!milestoneDate && endDate && new Date(supportHandoverDate) < new Date(endDate)) {
-               errors[id]['supportHandoverDate'] = 'Handover must be on or after the end date.';
-            }
+        if (startDate && supportHandoverDate && new Date(supportHandoverDate) < new Date(startDate)) {
+          errors[id]['supportHandoverDate'] = 'Handover must be on or after the start date.';
         }
       }
       this.validationErrors.set(errors);
@@ -70,6 +71,14 @@ export class AppComponent {
       endDate: '',
       milestoneDate: '',
       supportHandoverDate: '',
+      designPlanText: '',
+      designPlanFile: null,
+      designPlanFileName: '',
+      designPlanNotAvailable: false,
+      testPlanText: '',
+      testPlanFile: null,
+      testPlanFileName: '',
+      testPlanNotAvailable: false,
     },
   ]);
 
@@ -85,6 +94,14 @@ export class AppComponent {
           endDate: '',
           milestoneDate: '',
           supportHandoverDate: '',
+          designPlanText: '',
+          designPlanFile: null,
+          designPlanFileName: '',
+          designPlanNotAvailable: false,
+          testPlanText: '',
+          testPlanFile: null,
+          testPlanFileName: '',
+          testPlanNotAvailable: false,
         },
       ];
     });
@@ -96,16 +113,47 @@ export class AppComponent {
     );
   }
 
-  updatePhaseField(index: number, field: keyof Phase, value: string | number): void {
+  updatePhaseField(index: number, field: keyof Phase, value: string | number | boolean): void {
     this.phases.update(currentPhases => {
       const newPhases = [...currentPhases];
       const phaseToUpdate = { ...newPhases[index] };
       (phaseToUpdate as any)[field] = value;
+      
+      if (field === 'designPlanNotAvailable' && value === true) {
+        phaseToUpdate.designPlanText = '';
+        phaseToUpdate.designPlanFile = null;
+        phaseToUpdate.designPlanFileName = '';
+      }
+      if (field === 'testPlanNotAvailable' && value === true) {
+        phaseToUpdate.testPlanText = '';
+        phaseToUpdate.testPlanFile = null;
+        phaseToUpdate.testPlanFileName = '';
+      }
+      
       newPhases[index] = phaseToUpdate;
       return newPhases;
     });
   }
   
+  handleFileUpload(index: number, planType: 'design' | 'test', event: Event) {
+    const input = event.target as HTMLInputElement;
+    const file = input.files?.[0] || null;
+
+    this.phases.update(currentPhases => {
+      const newPhases = [...currentPhases];
+      const phaseToUpdate = { ...newPhases[index] };
+      if (planType === 'design') {
+        phaseToUpdate.designPlanFile = file;
+        phaseToUpdate.designPlanFileName = file ? file.name : '';
+      } else {
+        phaseToUpdate.testPlanFile = file;
+        phaseToUpdate.testPlanFileName = file ? file.name : '';
+      }
+      newPhases[index] = phaseToUpdate;
+      return newPhases;
+    });
+  }
+
   updateProjectName(event: Event) {
     const input = event.target as HTMLInputElement;
     this.projectName.set(input.value);
@@ -114,5 +162,54 @@ export class AppComponent {
   updateProjectScope(event: Event) {
     const input = event.target as HTMLTextAreaElement;
     this.projectScope.set(input.value);
+  }
+
+  async downloadProjectAsZip(): Promise<void> {
+    this.isProcessing.set(true);
+    try {
+      const { jsPDF } = jspdf;
+      const zip = new JSZip();
+
+      const planElement = document.querySelector('#project-capture-area');
+      if (!planElement) {
+        console.error('Could not find the element to capture.');
+        return;
+      }
+      const canvas = await html2canvas(planElement as HTMLElement);
+      const imgData = canvas.toDataURL('image/png');
+      
+      const pdf = new jsPDF({
+        orientation: 'p',
+        unit: 'px',
+        format: [canvas.width, canvas.height]
+      });
+      pdf.addImage(imgData, 'PNG', 0, 0, canvas.width, canvas.height);
+      zip.file('Project_Plan.pdf', pdf.output('blob'));
+
+      this.phases().forEach(phase => {
+        const phaseName = phase.name.replace(/[^a-zA-Z0-9]/g, '_');
+        if (phase.designPlanFile) {
+          zip.file(`documents/${phaseName}_Design_Plan_${phase.designPlanFile.name}`, phase.designPlanFile);
+        }
+        if (phase.testPlanFile) {
+          zip.file(`documents/${phaseName}_Test_Plan_${phase.testPlanFile.name}`, phase.testPlanFile);
+        }
+      });
+
+      const zipContent = await zip.generateAsync({ type: 'blob' });
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(zipContent);
+      const safeProjectName = this.projectName().replace(/[^a-zA-Z0-9]/g, '_') || 'Project';
+      link.download = `${safeProjectName}_Onboarding_Package.zip`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(link.href);
+
+    } catch (error) {
+      console.error('Error generating zip file:', error);
+    } finally {
+      this.isProcessing.set(false);
+    }
   }
 }
