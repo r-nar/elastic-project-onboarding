@@ -4,7 +4,6 @@ import { TimelineComponent } from './components/timeline/timeline.component';
 import { Phase } from './phase.interface';
 
 declare var jspdf: any;
-declare var html2canvas: any;
 declare var JSZip: any;
 
 @Component({
@@ -169,23 +168,101 @@ export class AppComponent {
     try {
       const { jsPDF } = jspdf;
       const zip = new JSZip();
-
-      const planElement = document.querySelector('#project-capture-area');
-      if (!planElement) {
-        console.error('Could not find the element to capture.');
-        return;
-      }
-      const canvas = await html2canvas(planElement as HTMLElement);
-      const imgData = canvas.toDataURL('image/png');
+      const doc = new jsPDF();
       
-      const pdf = new jsPDF({
-        orientation: 'p',
-        unit: 'px',
-        format: [canvas.width, canvas.height]
-      });
-      pdf.addImage(imgData, 'PNG', 0, 0, canvas.width, canvas.height);
-      zip.file('Project_Plan.pdf', pdf.output('blob'));
+      const pageHeight = doc.internal.pageSize.height;
+      const margin = 20;
+      let cursorY = margin;
 
+      // --- PDF Content Generation ---
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(18);
+      doc.text('Elastic Project Onboarding Plan', 14, cursorY);
+      cursorY += 15;
+
+      doc.setFontSize(12);
+      doc.text('Project Details', 14, cursorY);
+      cursorY += 8;
+
+      doc.setFont('helvetica', 'normal');
+      doc.text(`Project Name: ${this.projectName()}`, 14, cursorY);
+      cursorY += 8;
+
+      doc.setFont('helvetica', 'bold');
+      doc.text('Project Scope:', 14, cursorY);
+      cursorY += 6;
+      doc.setFont('helvetica', 'normal');
+      const scopeLines = doc.splitTextToSize(this.projectScope(), 180);
+      doc.text(scopeLines, 14, cursorY);
+      cursorY += scopeLines.length * 5 + 10;
+
+      this.phases().forEach(phase => {
+        if (cursorY > pageHeight - 70) { // Check for new page
+          doc.addPage();
+          cursorY = margin;
+        }
+
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(14);
+        doc.text(phase.name, 14, cursorY);
+        cursorY += 10;
+
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(10);
+        
+        doc.text(`Start Date: ${phase.startDate || 'N/A'}`, 14, cursorY);
+        doc.text(`End Date: ${phase.endDate || 'N/A'}`, 100, cursorY);
+        cursorY += 7;
+
+        doc.text(`Milestone Date: ${phase.milestoneDate || 'N/A'}`, 14, cursorY);
+        doc.text(`Support Handover: ${phase.supportHandoverDate || 'N/A'}`, 100, cursorY);
+        cursorY += 10;
+
+        // Design Plan
+        doc.setFont('helvetica', 'bold');
+        doc.text('Design Plan:', 14, cursorY);
+        cursorY += 5;
+        doc.setFont('helvetica', 'normal');
+        if (phase.designPlanNotAvailable) {
+          doc.text('Not Available', 20, cursorY);
+          cursorY += 7;
+        } else {
+          if (phase.designPlanText) {
+            const textLines = doc.splitTextToSize(`Notes: ${phase.designPlanText}`, 170);
+            doc.text(textLines, 20, cursorY);
+            cursorY += textLines.length * 4 + 3;
+          }
+          doc.text(`File: ${phase.designPlanFileName || 'No file uploaded'}`, 20, cursorY);
+          cursorY += 7;
+        }
+
+        // Test Plan
+        if (cursorY > pageHeight - 40) {
+          doc.addPage();
+          cursorY = margin;
+        }
+        doc.setFont('helvetica', 'bold');
+        doc.text('Test Plan:', 14, cursorY);
+        cursorY += 5;
+        doc.setFont('helvetica', 'normal');
+        if (phase.testPlanNotAvailable) {
+          doc.text('Not Available', 20, cursorY);
+          cursorY += 7;
+        } else {
+          if (phase.testPlanText) {
+            const textLines = doc.splitTextToSize(`Notes: ${phase.testPlanText}`, 170);
+            doc.text(textLines, 20, cursorY);
+            cursorY += textLines.length * 4 + 3;
+          }
+          doc.text(`File: ${phase.testPlanFileName || 'No file uploaded'}`, 20, cursorY);
+          cursorY += 7;
+        }
+        cursorY += 5; // Space between phases
+      });
+      
+      zip.file('Project_Plan.pdf', doc.output('blob'));
+
+      // --- Zipping Uploaded Files ---
       this.phases().forEach(phase => {
         const phaseName = phase.name.replace(/[^a-zA-Z0-9]/g, '_');
         if (phase.designPlanFile) {
@@ -196,6 +273,7 @@ export class AppComponent {
         }
       });
 
+      // --- Triggering Download ---
       const zipContent = await zip.generateAsync({ type: 'blob' });
       const link = document.createElement('a');
       link.href = URL.createObjectURL(zipContent);
