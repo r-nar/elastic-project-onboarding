@@ -25,6 +25,22 @@ export class AppComponent {
   projectScope = signal<string>('This project aims to deliver an innovative solution by leveraging cutting-edge technologies to solve a critical business problem.');
   isProcessing = signal(false);
   
+  readonly artefactKeys = [
+    'agentMonitoring', 'indexTemplates', 'ilm', 'watchers', 'transforms',
+    'ingestPipelines', 'logstashPipelines', 'pythonScripting', 'aiMl'
+  ];
+  readonly artefactLabels: Record<string, string> = {
+    agentMonitoring: 'Agent Monitoring',
+    indexTemplates: 'Index templates',
+    ilm: 'ILM',
+    watchers: 'Watchers',
+    transforms: 'Transforms',
+    ingestPipelines: 'Ingest Pipelines',
+    logstashPipelines: 'Logstash Pipelines',
+    pythonScripting: 'Python Scripting',
+    aiMl: 'AI/ ML'
+  };
+  
   validationErrors = signal<Record<string, Record<string, string>>>({});
 
   constructor() {
@@ -78,6 +94,15 @@ export class AppComponent {
       testPlanFile: null,
       testPlanFileName: '',
       testPlanNotAvailable: false,
+      elasticArtefacts: {
+        agentMonitoring: false, indexTemplates: false, ilm: false, watchers: false,
+        transforms: false, ingestPipelines: false, logstashPipelines: false,
+        pythonScripting: false, aiMl: false, others: false, othersText: ''
+      },
+      elasticArtefactsNotes: '',
+      elasticArtefactsFile: null,
+      elasticArtefactsFileName: '',
+      elasticArtefactsNotAvailable: false,
     },
   ]);
 
@@ -101,6 +126,15 @@ export class AppComponent {
           testPlanFile: null,
           testPlanFileName: '',
           testPlanNotAvailable: false,
+           elasticArtefacts: {
+            agentMonitoring: false, indexTemplates: false, ilm: false, watchers: false,
+            transforms: false, ingestPipelines: false, logstashPipelines: false,
+            pythonScripting: false, aiMl: false, others: false, othersText: ''
+          },
+          elasticArtefactsNotes: '',
+          elasticArtefactsFile: null,
+          elasticArtefactsFileName: '',
+          elasticArtefactsNotAvailable: false,
         },
       ];
     });
@@ -128,13 +162,36 @@ export class AppComponent {
         phaseToUpdate.testPlanFile = null;
         phaseToUpdate.testPlanFileName = '';
       }
+       if (field === 'elasticArtefactsNotAvailable' && value === true) {
+        phaseToUpdate.elasticArtefactsNotes = '';
+        phaseToUpdate.elasticArtefactsFile = null;
+        phaseToUpdate.elasticArtefactsFileName = '';
+      }
       
       newPhases[index] = phaseToUpdate;
       return newPhases;
     });
   }
   
-  handleFileUpload(index: number, planType: 'design' | 'test', event: Event) {
+  updateElasticArtefact(phaseIndex: number, artefact: string, value: string | boolean) {
+    this.phases.update(phases => {
+      const newPhases = [...phases];
+      const phaseToUpdate = { ...newPhases[phaseIndex] };
+      const newArtefacts = { ...phaseToUpdate.elasticArtefacts };
+
+      if (artefact === 'othersText') {
+        newArtefacts.othersText = value as string;
+      } else {
+        (newArtefacts as any)[artefact] = value as boolean;
+      }
+      
+      phaseToUpdate.elasticArtefacts = newArtefacts;
+      newPhases[phaseIndex] = phaseToUpdate;
+      return newPhases;
+    });
+  }
+  
+  handleFileUpload(index: number, planType: 'design' | 'test' | 'elastic', event: Event) {
     const input = event.target as HTMLInputElement;
     const file = input.files?.[0] || null;
 
@@ -144,9 +201,12 @@ export class AppComponent {
       if (planType === 'design') {
         phaseToUpdate.designPlanFile = file;
         phaseToUpdate.designPlanFileName = file ? file.name : '';
-      } else {
+      } else if (planType === 'test') {
         phaseToUpdate.testPlanFile = file;
         phaseToUpdate.testPlanFileName = file ? file.name : '';
+      } else {
+        phaseToUpdate.elasticArtefactsFile = file;
+        phaseToUpdate.elasticArtefactsFileName = file ? file.name : '';
       }
       newPhases[index] = phaseToUpdate;
       return newPhases;
@@ -257,6 +317,47 @@ export class AppComponent {
           doc.text(`File: ${phase.testPlanFileName || 'No file uploaded'}`, 20, cursorY);
           cursorY += 7;
         }
+        
+        // Elastic specific Artefacts
+        if (cursorY > pageHeight - 60) {
+          doc.addPage();
+          cursorY = margin;
+        }
+        doc.setFont('helvetica', 'bold');
+        doc.text('Elastic specific Artefacts:', 14, cursorY);
+        cursorY += 5;
+        doc.setFont('helvetica', 'normal');
+        
+        if (phase.elasticArtefactsNotAvailable) {
+          doc.text('Not Available', 20, cursorY);
+          cursorY += 7;
+        } else {
+            const selectedArtefacts = this.artefactKeys
+              .filter(key => (phase.elasticArtefacts as any)[key])
+              .map(key => this.artefactLabels[key]);
+            
+            if (phase.elasticArtefacts.others) {
+                const otherText = phase.elasticArtefacts.othersText.trim();
+                selectedArtefacts.push(otherText ? `Other: ${otherText}` : 'Other (unspecified)');
+            }
+
+            if (selectedArtefacts.length > 0) {
+                const textLines = doc.splitTextToSize(`Selected: ${selectedArtefacts.join(', ')}`, 170);
+                doc.text(textLines, 20, cursorY);
+                cursorY += textLines.length * 4 + 3;
+            } else {
+                doc.text('Selected: None', 20, cursorY);
+                cursorY += 7;
+            }
+
+            if (phase.elasticArtefactsNotes) {
+                const textLines = doc.splitTextToSize(`Notes: ${phase.elasticArtefactsNotes}`, 170);
+                doc.text(textLines, 20, cursorY);
+                cursorY += textLines.length * 4 + 3;
+            }
+            doc.text(`File: ${phase.elasticArtefactsFileName || 'No file uploaded'}`, 20, cursorY);
+            cursorY += 7;
+        }
         cursorY += 5; // Space between phases
       });
       
@@ -266,10 +367,13 @@ export class AppComponent {
       this.phases().forEach(phase => {
         const phaseName = phase.name.replace(/[^a-zA-Z0-9]/g, '_');
         if (phase.designPlanFile) {
-          zip.file(`documents/${phaseName}_Design_Plan_${phase.designPlanFile.name}`, phase.designPlanFile);
+          zip.file(`Design_Plan/${phaseName}/${phase.designPlanFile.name}`, phase.designPlanFile);
         }
         if (phase.testPlanFile) {
-          zip.file(`documents/${phaseName}_Test_Plan_${phase.testPlanFile.name}`, phase.testPlanFile);
+          zip.file(`Test_Plan/${phaseName}/${phase.testPlanFile.name}`, phase.testPlanFile);
+        }
+        if (phase.elasticArtefactsFile) {
+          zip.file(`Elastic_specific_Artefacts/${phaseName}/${phase.elasticArtefactsFile.name}`, phase.elasticArtefactsFile);
         }
       });
 

@@ -13,4 +13,21 @@ export interface Phase {
   testPlanFile: File | null;
   testPlanFileName: string;
   testPlanNotAvailable: boolean;
+  elasticArtefacts: {
+    agentMonitoring: boolean;
+    indexTemplates: boolean;
+    ilm: boolean;
+    watchers: boolean;
+    transforms: boolean;
+    ingestPipelines: boolean;
+    logstashPipelines: boolean;
+    pythonScripting: boolean;
+    aiMl: boolean;
+    others: boolean;
+    othersText: string;
+  };
+  elasticArtefactsNotes: string;
+  elasticArtefactsFile: File | null;
+  elasticArtefactsFileName: string;
+  elasticArtefactsNotAvailable: boolean;
 }

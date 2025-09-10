@@ -159,6 +159,55 @@
                   </div>
                 </div>
               </div>
+              
+              <!-- Elastic specific Artefacts -->
+              <div class="col-span-1 md:col-span-2 mt-6 pt-6 border-t border-slate-200">
+                <div class="space-y-4">
+                  <h4 class="text-md font-semibold text-slate-700">Elastic Specific Artefacts</h4>
+                   <div class="flex items-center">
+                    <input [id]="'elastic-na-' + i" type="checkbox" [checked]="phase.elasticArtefactsNotAvailable" (change)="updatePhaseField(i, 'elasticArtefactsNotAvailable', $any($event.target).checked)" class="h-4 w-4 text-indigo-600 border-slate-300 rounded focus:ring-indigo-500">
+                    <label [for]="'elastic-na-' + i" class="ml-2 block text-sm text-slate-900">Not Available</label>
+                  </div>
+
+                  <div class="grid grid-cols-2 sm:grid-cols-3 gap-x-6 gap-y-3" [class.opacity-50]="phase.elasticArtefactsNotAvailable">
+                    @for (key of artefactKeys; track key) {
+                      <div class="flex items-center">
+                          <input [id]="'artefact-' + i + '-' + key" type="checkbox" [checked]="$any(phase.elasticArtefacts)[key]" (change)="updateElasticArtefact(i, key, $any($event.target).checked)" [disabled]="phase.elasticArtefactsNotAvailable" class="h-4 w-4 text-indigo-600 border-slate-300 rounded focus:ring-indigo-500 disabled:cursor-not-allowed">
+                          <label [for]="'artefact-' + i + '-' + key" class="ml-2 block text-sm text-slate-900">{{ artefactLabels[key] }}</label>
+                      </div>
+                    }
+                    <div class="flex items-center">
+                        <input [id]="'artefact-' + i + '-others'" type="checkbox" [checked]="phase.elasticArtefacts.others" (change)="updateElasticArtefact(i, 'others', $any($event.target).checked)" [disabled]="phase.elasticArtefactsNotAvailable" class="h-4 w-4 text-indigo-600 border-slate-300 rounded focus:ring-indigo-500 disabled:cursor-not-allowed">
+                        <label [for]="'artefact-' + i + '-others'" class="ml-2 block text-sm text-slate-900">Others</label>
+                    </div>
+                  </div>
+
+                  @if(phase.elasticArtefacts.others) {
+                      <div [class.opacity-50]="phase.elasticArtefactsNotAvailable">
+                          <label [for]="'others-text-' + i" class="sr-only">Specify Others</label>
+                          <input type="text" [id]="'others-text-' + i" [value]="phase.elasticArtefacts.othersText" (input)="updateElasticArtefact(i, 'othersText', $any($event.target).value)" [disabled]="phase.elasticArtefactsNotAvailable" class="mt-1 block w-full px-3 py-2 bg-slate-200 border border-slate-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 transition disabled:bg-slate-300 disabled:cursor-not-allowed" placeholder="Please specify...">
+                      </div>
+                  }
+
+                  <div>
+                    <label [for]="'elastic-notes-' + i" class="block text-sm font-medium text-slate-700">Notes / Link to document</label>
+                    <textarea [id]="'elastic-notes-' + i" rows="3" [value]="phase.elasticArtefactsNotes" (input)="updatePhaseField(i, 'elasticArtefactsNotes', $any($event.target).value)" [disabled]="phase.elasticArtefactsNotAvailable" class="mt-1 block w-full px-3 py-2 bg-slate-200 border border-slate-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 transition disabled:bg-slate-300 disabled:cursor-not-allowed" placeholder="Add a brief description or a link..."></textarea>
+                  </div>
+                  <div>
+                    <label class="block text-sm font-medium text-slate-700">Upload Artefact Document</label>
+                    <div class="mt-1 flex items-center gap-4">
+                      <label [for]="'elastic-file-' + i" class="relative cursor-pointer inline-flex items-center px-4 py-2 border border-slate-300 text-sm font-medium rounded-md text-slate-700 bg-white hover:bg-slate-50 focus-within:outline-none focus-within:ring-2 focus-within:ring-offset-2 focus-within:ring-indigo-500 transition" [class.bg-slate-300]="phase.elasticArtefactsNotAvailable" [class.cursor-not-allowed]="phase.elasticArtefactsNotAvailable" [class.opacity-50]="phase.elasticArtefactsNotAvailable">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" /></svg>
+                        <span>Upload File</span>
+                        <input type="file" [id]="'elastic-file-' + i" (change)="handleFileUpload(i, 'elastic', $event)" [disabled]="phase.elasticArtefactsNotAvailable" class="sr-only">
+                      </label>
+                      @if(phase.elasticArtefactsFileName) {
+                        <span class="text-sm text-slate-600 truncate">{{ phase.elasticArtefactsFileName }}</span>
+                      }
+                    </div>
+                  </div>
+                </div>
+              </div>
           </div>
         }
       </div>
