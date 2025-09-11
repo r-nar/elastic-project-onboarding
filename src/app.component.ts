@@ -318,13 +318,13 @@ export class AppComponent {
           cursorY += 7;
         }
         
-        // Elastic specific Artefacts
+        // Elastic Specific Artifacts
         if (cursorY > pageHeight - 60) {
           doc.addPage();
           cursorY = margin;
         }
         doc.setFont('helvetica', 'bold');
-        doc.text('Elastic specific Artefacts:', 14, cursorY);
+        doc.text('Elastic Specific Artifacts:', 14, cursorY);
         cursorY += 5;
         doc.setFont('helvetica', 'normal');
         
